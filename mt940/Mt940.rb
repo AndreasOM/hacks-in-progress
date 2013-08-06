@@ -44,7 +44,13 @@ class Mt940
 		      else
 		        vdate = '19'+vdate
 		      end
-		      @value_date = DateTime.strptime(vdate, '%Y%m%d')
+		      p vdate
+		      begin
+			      @value_date = DateTime.strptime(vdate, '%Y%m%d') # 20130230
+			  rescue Exception=>e
+			  	@value_date = DateTime.new(1970, 1, 1, 0, 0, 0) #"19700101"  #"[BROKEN]#{m[1]}"
+			  	print "WARNING: Broken date: >%s<\n" % m[ 1 ]
+			  end
 		#      @value_date = m[ 1 ]
 		      @book_date = m[ 2 ]
 		      @is_credit = m[ 3 ] == 'C'
@@ -148,11 +154,14 @@ class Mt940
 	end
 
 	def loadFromFile( filename )
+		current_line = ''
+		begin
 		File.open( filename, 'rb' ){ |f|
 		  state = 0
 		  statement = nil
 		  transaction = nil
 		  f.each_line{ |l|
+		  	current_line = l
 		    l.chomp!
 		#p l
 		    if m = /:([0-9a-zA-Z]{2,3}):(.*)/.match(l)
@@ -220,13 +229,25 @@ class Mt940
 		    end
 		  }
 		}
+		rescue Exception=>e
+			p e
+			p e.inspect
+			print e.backtrace.join("\n")
+			p current_line
+			return false
+		end
+
+		return true
+
 	end
 
+	def mergeStatement( statement )
+	end
 
 	def toSpecialCsv()
 		csv = ''
 		@statements.each{ |s|
-			s.transactions.each{ |t|
+			s.transactions.sort! { |a,b| a.value_date <=> b.value_date }.each{ |t|
 				type = 'NONE'
 				times_per_year = 1
 				short = t.shortDetail()
@@ -240,7 +261,7 @@ class Mt940
 				end
 				per_month = ( t.amount/12 )*times_per_year
 				per_month = t.amount if type == 'NONE'
-				csv += "#{t.value_date.to_date.to_s};\"%80s\";%8.2f;%10s;%2.0f;%8.2f;\n" % [short[0..79], t.amount, '"'+type[0..9]+'"', times_per_year.to_i, per_month]
+				csv += "#{t.value_date.to_date.to_s};%80s;%8.2f;%10s;%2.0f;%8.2f;\n" % [ '"'+short[0..79]+'"', t.amount, '"'+type[0..9]+'"', times_per_year.to_i, per_month]
 			}
 		}
 		csv

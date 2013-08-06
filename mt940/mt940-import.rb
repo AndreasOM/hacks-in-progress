@@ -21,6 +21,10 @@ statements = []
 mt940 = Mt940.new()
 mt940.loadFromFile( input )
 
+mt940clean = Mt940.new()
+mt940.statements.each{ |s|
+  mt940.mergeStatement( s )
+}
 puts mt940.toSpecialCsv()
 
 __END__
